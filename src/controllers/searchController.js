@@ -1,34 +1,50 @@
 const pool = require('../config/db');
+const { getLocalDateString } = require('../utils/dateTime');
 
 const VALID_TYPES = new Set(['flight', 'train', 'bus', 'hotel']);
-const TABLE_MAP = { flight: 'flights', train: 'trains', bus: 'buses' };
+const TRANSPORT_TABLE_BY_TYPE = { flight: 'flights', train: 'trains', bus: 'buses' };
 
-async function getCitySuggestions(req, res) {
-  const q = (req.query.q || '').trim();
-  if (!q) return res.json([]);
+function buildSearchMeta(mode, note) {
+  return { mode, note };
+}
+
+async function fetchCitySuggestions(req, res) {
+  const searchTerm = (req.query.q || '').trim();
+  if (!searchTerm) return res.json([]);
 
   const [rows] = await pool.query(
     'SELECT city_name FROM cities WHERE city_name LIKE ? ORDER BY city_name LIMIT 8',
-    [`%${q}%`]
+    [`%${searchTerm}%`]
   );
 
   res.json(rows.map((r) => r.city_name));
 }
 
-async function runHotelSearch({ city, maxPrice, minRating, roomsNeeded, classType, allowAnyCity }) {
-  const cityPattern = allowAnyCity ? '%' : `%${city}%`;
+async function findCityByName(cityName) {
+  const normalizedCityName = String(cityName || '').trim().toLowerCase();
+  if (!normalizedCityName) return null;
+
+  const [rows] = await pool.query(
+    'SELECT city_id, city_name FROM cities WHERE LOWER(TRIM(city_name)) = ? LIMIT 1',
+    [normalizedCityName]
+  );
+
+  return rows[0] || null;
+}
+
+async function findHotelResults({ cityId, maxPrice, minRating, roomsNeeded, classType }) {
 
   let query = `
     SELECT h.*, c.city_name
     FROM hotels h
     JOIN cities c ON c.city_id = h.city_id
-    WHERE c.city_name LIKE ?
+    WHERE h.city_id = ?
       AND h.price_per_night <= ?
       AND h.rating >= ?
       AND h.available_rooms >= ?
   `;
 
-  const params = [cityPattern, maxPrice, minRating, roomsNeeded];
+  const params = [cityId, maxPrice, minRating, roomsNeeded];
 
   if (classType) {
     query += ' AND h.room_type LIKE ?';
@@ -41,16 +57,15 @@ async function runHotelSearch({ city, maxPrice, minRating, roomsNeeded, classTyp
   return results;
 }
 
-async function runTransportSearch({
+async function findTransportResults({
   table,
-  src,
-  dest,
+  sourceCityId,
+  destinationCityId,
   searchDate,
   maxPrice,
   minRating,
   peopleCount,
   classType,
-  routeMode,
   dateMode
 }) {
   let query = `
@@ -66,13 +81,8 @@ async function runTransportSearch({
 
   const params = [searchDate, maxPrice, minRating, peopleCount];
 
-  if (routeMode === 'exact') {
-    query += ' AND s.city_name LIKE ? AND d.city_name LIKE ?';
-    params.push(`%${src}%`, `%${dest}%`);
-  } else if (routeMode === 'either') {
-    query += ' AND (s.city_name LIKE ? OR d.city_name LIKE ?)';
-    params.push(`%${src}%`, `%${dest}%`);
-  }
+  query += ' AND t.source_city_id = ? AND t.destination_city_id = ?';
+  params.push(sourceCityId, destinationCityId);
 
   if (dateMode === 'tight') {
     query += ' AND t.travel_date BETWEEN ? AND DATE_ADD(?, INTERVAL 14 DAY)';
@@ -95,8 +105,9 @@ async function runTransportSearch({
   return results;
 }
 
-async function searchAll(req, res) {
-  const { type, source, destination, date, maxPrice, classType, people, minRating } = req.body;
+async function searchInventory(req, res) {
+  const { type, source, destination, date, checkOutDate, maxPrice, classType, people, minRating } = req.body;
+  const today = getLocalDateString();
 
   if (!VALID_TYPES.has(type)) {
     return res.status(400).send('Invalid search type.');
@@ -105,70 +116,70 @@ async function searchAll(req, res) {
   const peopleCount = Math.max(1, Number(people) || 1);
   const maxPriceVal = Number(maxPrice) > 0 ? Number(maxPrice) : 100000;
   const minRatingVal = Number(minRating) >= 0 ? Number(minRating) : 0;
-  const searchDate = date || new Date().toISOString().split('T')[0];
+  const searchDate = date || getLocalDateString();
 
   let results = [];
-  let searchMeta = {
-    mode: 'strict',
-    note: 'Showing best matches for your filters.'
-  };
+  let searchMeta = buildSearchMeta('strict', 'Showing best matches for your filters.');
 
   if (type === 'hotel') {
     const city = (destination || '').trim();
     if (!city) return res.status(400).send('Please enter hotel city.');
+    if (!date || !checkOutDate) {
+      return res.status(400).send('Please enter hotel check-in and check-out dates.');
+    }
+    if (!/^\d{4}-\d{2}-\d{2}$/.test(date) || !/^\d{4}-\d{2}-\d{2}$/.test(checkOutDate)) {
+      return res.status(400).send('Please enter valid hotel stay dates.');
+    }
+    if (date < today) {
+      return res.status(400).send('Hotel check-in date cannot be in the past.');
+    }
+
+    const checkInDate = new Date(`${date}T00:00:00`);
+    const checkOutDateValue = new Date(`${checkOutDate}T00:00:00`);
+    if (Number.isNaN(checkInDate.getTime()) || Number.isNaN(checkOutDateValue.getTime()) || checkOutDateValue <= checkInDate) {
+      return res.status(400).send('Hotel check-out date must be after check-in date.');
+    }
+
+    const hotelCity = await findCityByName(city);
+
+    if (!hotelCity) {
+      return res.render('search/results', {
+        type,
+        results: [],
+        filters: req.body,
+        searchMeta: buildSearchMeta('no-match', 'Selected city was not found. Please choose a valid city from the available destinations.')
+      });
+    }
 
     const roomsNeeded = Math.max(1, Math.ceil(peopleCount / 2));
 
-    results = await runHotelSearch({
-      city,
+    results = await findHotelResults({
+      cityId: hotelCity.city_id,
       maxPrice: maxPriceVal,
       minRating: minRatingVal,
       roomsNeeded,
-      classType,
-      allowAnyCity: false
+      classType
     });
 
     if (!results.length) {
-      results = await runHotelSearch({
-        city,
+      results = await findHotelResults({
+        cityId: hotelCity.city_id,
         maxPrice: maxPriceVal * 2,
         minRating: 0,
         roomsNeeded,
-        classType: '',
-        allowAnyCity: false
+        classType: ''
       });
 
       if (results.length) {
-        searchMeta = {
-          mode: 'relaxed',
-          note: 'No exact hotel matches found. Showing nearby price/rating alternatives in the same city.'
-        };
-      }
-    }
-
-    if (!results.length) {
-      results = await runHotelSearch({
-        city,
-        maxPrice: maxPriceVal * 3,
-        minRating: 0,
-        roomsNeeded: 1,
-        classType: '',
-        allowAnyCity: true
-      });
-
-      if (results.length) {
-        searchMeta = {
-          mode: 'fallback',
-          note: 'No hotels found for selected city. Showing top available hotels in other cities.'
-        };
+        searchMeta = buildSearchMeta('relaxed', 'No exact hotel matches found. Showing nearby price/rating alternatives in the same city.');
       }
     }
 
     if (!results.length) {
       const [[hotelCount]] = await pool.query('SELECT COUNT(*) AS total FROM hotels');
       searchMeta = hotelCount.total === 0
-        ? { mode: 'no-inventory', note: 'No hotel inventory is configured yet. Add hotels from Admin panel.' }
-        : { mode: 'no-match', note: 'No hotels matched even after fallback. Try another city or increase budget.' };
+        ? buildSearchMeta('no-inventory', 'No hotel inventory is configured yet. Add hotels from Admin panel.')
+        : buildSearchMeta('no-match', `No hotels are available for ${hotelCity.city_name} with the selected filters. Try another date, class, or budget.`);
     }
 
     return res.render('search/results', { type, results, filters: req.body, searchMeta });
@@ -177,96 +188,68 @@ async function searchAll(req, res) {
   const src = (source || '').trim();
   const dest = (destination || '').trim();
   if (!src || !dest) return res.status(400).send('Please enter source and destination city.');
+  if (!date) return res.status(400).send('Please select a travel date.');
+  if (!/^\d{4}-\d{2}-\d{2}$/.test(date)) {
+    return res.status(400).send('Please enter a valid travel date.');
+  }
+  if (date < today) {
+    return res.status(400).send('Travel date cannot be in the past.');
+  }
+  if (src.toLowerCase() === dest.toLowerCase()) {
+    return res.status(400).send('Source and destination city cannot be the same.');
+  }
+  const sourceCity = await findCityByName(src);
+  const destinationCity = await findCityByName(dest);
 
-  const table = TABLE_MAP[type];
+  if (!sourceCity || !destinationCity) {
+    return res.render('search/results', {
+      type,
+      results: [],
+      filters: req.body,
+      searchMeta: buildSearchMeta('no-match', 'Source or destination city was not found. Please select valid cities from the available destinations.')
+    });
+  }
 
-  results = await runTransportSearch({
+  const table = TRANSPORT_TABLE_BY_TYPE[type];
+
+  results = await findTransportResults({
     table,
-    src,
-    dest,
+    sourceCityId: sourceCity.city_id,
+    destinationCityId: destinationCity.city_id,
     searchDate,
     maxPrice: maxPriceVal,
     minRating: minRatingVal,
     peopleCount,
     classType,
-    routeMode: 'exact',
     dateMode: 'tight'
   });
 
   if (!results.length) {
-    results = await runTransportSearch({
+    results = await findTransportResults({
       table,
-      src,
-      dest,
+      sourceCityId: sourceCity.city_id,
+      destinationCityId: destinationCity.city_id,
       searchDate,
       maxPrice: maxPriceVal * 2,
       minRating: Math.min(minRatingVal, 3),
       peopleCount,
       classType: '',
-      routeMode: 'exact',
       dateMode: 'wide'
     });
 
     if (results.length) {
-      searchMeta = {
-        mode: 'relaxed',
-        note: 'No exact date/class matches found. Showing closest dates and fare alternatives.'
-      };
-    }
-  }
-
-  if (!results.length) {
-    results = await runTransportSearch({
-      table,
-      src,
-      dest,
-      searchDate,
-      maxPrice: maxPriceVal * 3,
-      minRating: 0,
-      peopleCount: 1,
-      classType: '',
-      routeMode: 'either',
-      dateMode: 'upcoming'
-    });
-
-    if (results.length) {
-      searchMeta = {
-        mode: 'route-fallback',
-        note: 'No direct route found for your filters. Showing nearby route alternatives.'
-      };
-    }
-  }
-
-  if (!results.length) {
-    results = await runTransportSearch({
-      table,
-      src,
-      dest,
-      searchDate,
-      maxPrice: 999999,
-      minRating: 0,
-      peopleCount: 1,
-      classType: '',
-      routeMode: 'any',
-      dateMode: 'any'
-    });
-
-    if (results.length) {
-      searchMeta = {
-        mode: 'global-fallback',
-        note: 'No options found on your route. Showing top available options from all dates/routes.'
-      };
+      searchMeta = buildSearchMeta('relaxed', 'No exact date/class matches found. Showing closest dates and fare alternatives.');
     }
   }
 
   if (!results.length) {
     const [[tableCount]] = await pool.query(`SELECT COUNT(*) AS total FROM ${table}`);
     searchMeta = tableCount.total === 0
-      ? { mode: 'no-inventory', note: `No ${type} inventory is configured yet. Add records from Admin panel.` }
-      : { mode: 'no-match', note: 'No options matched even after fallback. Try different cities or broader budget.' };
+      ? buildSearchMeta('no-inventory', `No ${type} inventory is configured yet. Add records from Admin panel.`)
+      : buildSearchMeta('no-match', `No ${type} service is available from ${sourceCity.city_name} to ${destinationCity.city_name} for the selected filters.`);
   }
 
   res.render('search/results', { type, results, filters: req.body, searchMeta });
 }
 
-module.exports = { searchAll, getCitySuggestions };
+module.exports = { searchInventory, fetchCitySuggestions };

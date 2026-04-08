@@ -1,0 +1,60 @@
+<%- include('../partials/header') %>
+
+<section class="container page-section">
+  <article class="card-glass receipt-card" style="padding: 2rem;">
+    <div class="section-head section-head-tight" style="align-items:flex-start;">
+      <div>
+        <p class="eyebrow">E-Ticket</p>
+        <h1><%= booking.reservation_id %></h1>
+        <p class="subtext"><%= modelName %> • <%= booking.route_label %></p>
+      </div>
+      <span class="status-badge status-confirmed">CONFIRMED</span>
+    </div>
+
+    <div style="display:grid; grid-template-columns: minmax(220px, 1fr) minmax(180px, 220px); gap: 1.5rem; align-items:start;">
+      <div class="receipt-grid">
+        <div><span>Passenger</span><strong><%= booking.passenger_name %></strong></div>
+        <div><span>Phone</span><strong><%= booking.passenger_phone %></strong></div>
+        <div><span>Booking Type</span><strong><%= booking.booking_type.toUpperCase() %></strong></div>
+        <div><span>Model Name</span><strong><%= modelName %></strong></div>
+        <div><span><%= booking.booking_type === 'hotel' ? 'Check-in Date' : 'Travel Date' %></span><strong><%= booking.travel_date %></strong></div>
+        <% if (booking.check_out_date) { %>
+          <div><span>Check-out Date</span><strong><%= booking.check_out_date %></strong></div>
+        <% } %>
+        <% if (booking.depart_time) { %>
+          <div><span>Departure Time</span><strong><%= booking.depart_time %></strong></div>
+        <% } %>
+        <div><span><%= booking.booking_type === 'hotel' ? 'Rooms' : 'Seats' %></span><strong><%= booking.unit_labels || booking.units %></strong></div>
+        <div><span>Transaction Ref</span><strong><%= booking.transaction_ref || 'N/A' %></strong></div>
+        <div><span>Amount Paid</span><strong>INR <%= booking.total_price %></strong></div>
+      </div>
+
+      <div style="text-align:center;">
+        <div id="ticketQrCode" class="upi-qr-box" style="margin:0 auto 1rem;" aria-label="Ticket QR code"></div>
+        <p class="subtext">Scan to verify reservation details</p>
+      </div>
+    </div>
+
+    <div class="action-row" style="margin-top:1.5rem;">
+      <a href="/booking/history/<%= booking.booking_id %>" class="btn">Back to Receipt</a>
+      <button type="button" class="btn btn-ghost" onclick="window.print()">Print Ticket</button>
+    </div>
+  </article>
+</section>
+
+<script src="https://cdnjs.cloudflare.com/ajax/libs/qrcodejs/1.0.0/qrcode.min.js"></script>
+<script>
+  (function renderTicketQr() {
+    const target = document.getElementById('ticketQrCode');
+    if (!target || typeof window.QRCode === 'undefined') return;
+    new window.QRCode(target, {
+      text: <%- JSON.stringify(qrPayload) %>,
+      width: 180,
+      height: 180,
+      colorDark: '#102a43',
+      colorLight: '#ffffff'
+    });
+  })();
+</script>
+
+<%- include('../partials/footer') %>

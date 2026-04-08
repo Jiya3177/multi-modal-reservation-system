@@ -11,7 +11,7 @@
   <article class="card-glass">
     <div class="table-wrap">
       <table>
-        <thead><tr><th>ID</th><th>Name</th><th>Email</th><th>Phone</th><th>Role</th><th>Created</th><th>Action</th></tr></thead>
+        <thead><tr><th>ID</th><th>Name</th><th>Email</th><th>Phone</th><th>Wallet</th><th>Bookings</th><th>Spent</th><th>Created</th><th>Action</th></tr></thead>
         <tbody>
           <% users.forEach(u => { %>
             <tr>
@@ -19,10 +19,14 @@
               <td><%= u.full_name %></td>
               <td><%= u.email %></td>
               <td><%= u.phone %></td>
-              <td><%= u.role %></td>
+              <td>INR <%= Number(u.wallet_balance).toFixed(2) %></td>
+              <td><%= u.booking_count %></td>
+              <td>INR <%= Number(u.total_spent).toFixed(2) %></td>
               <td><%= u.created_at %></td>
               <td>
+                <a class="text-link" href="/admin/users/<%= u.user_id %>">Open</a>
                 <form class="inline-form" action="/admin/users/delete/<%= u.user_id %>" method="POST" onsubmit="return confirm('Delete this user? This fails if user has bookings.')">
+                  <input type="hidden" name="_csrf" value="<%= csrfToken %>" />
                   <button type="submit" class="text-link danger">Delete</button>
                 </form>
               </td>

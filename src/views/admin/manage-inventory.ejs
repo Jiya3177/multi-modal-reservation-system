@@ -9,6 +9,7 @@
   </div>
 
   <form class="card-glass form-wide" action="/admin/manage/<%= type %>/add" method="POST" novalidate>
+    <input type="hidden" name="_csrf" value="<%= csrfToken %>" />
     <h3>Add New <%= type %></h3>
     <div class="input-grid">
       <% if (type === 'hotel') { %>
@@ -69,6 +70,7 @@
               <td>
                 <a href="/admin/manage/<%= type %>/edit/<%= row[config.id] %>">Edit</a>
                 <form class="inline-form" action="/admin/manage/<%= type %>/delete/<%= row[config.id] %>" method="POST">
+                  <input type="hidden" name="_csrf" value="<%= csrfToken %>" />
                   <button type="submit" class="text-link danger">Delete</button>
                 </form>
               </td>

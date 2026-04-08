@@ -1,4 +1,5 @@
 const express = require('express');
+const { asyncHandler } = require('../utils/asyncHandler');
 const {
   getAdminDashboard,
   manageInventory,
@@ -7,6 +8,8 @@ const {
   updateInventory,
   deleteInventory,
   getUsers,
+  getUserDetail,
+  addWalletFunds,
   deleteUser,
   getBookings,
   getPayments
@@ -15,15 +18,17 @@ const { requireAdmin } = require('../middleware/auth');
 
 const router = express.Router();
 
-router.get('/', requireAdmin, getAdminDashboard);
-router.get('/manage/:type', requireAdmin, manageInventory);
-router.post('/manage/:type/add', requireAdmin, addInventory);
-router.get('/manage/:type/edit/:id', requireAdmin, getEditInventory);
-router.post('/manage/:type/edit/:id', requireAdmin, updateInventory);
-router.post('/manage/:type/delete/:id', requireAdmin, deleteInventory);
-router.get('/users', requireAdmin, getUsers);
-router.post('/users/delete/:id', requireAdmin, deleteUser);
-router.get('/bookings', requireAdmin, getBookings);
-router.get('/payments', requireAdmin, getPayments);
+router.get('/', requireAdmin, asyncHandler(getAdminDashboard));
+router.get('/manage/:type', requireAdmin, asyncHandler(manageInventory));
+router.post('/manage/:type/add', requireAdmin, asyncHandler(addInventory));
+router.get('/manage/:type/edit/:id', requireAdmin, asyncHandler(getEditInventory));
+router.post('/manage/:type/edit/:id', requireAdmin, asyncHandler(updateInventory));
+router.post('/manage/:type/delete/:id', requireAdmin, asyncHandler(deleteInventory));
+router.get('/users', requireAdmin, asyncHandler(getUsers));
+router.get('/users/:id', requireAdmin, asyncHandler(getUserDetail));
+router.post('/users/:id/wallet', requireAdmin, asyncHandler(addWalletFunds));
+router.post('/users/delete/:id', requireAdmin, asyncHandler(deleteUser));
+router.get('/bookings', requireAdmin, asyncHandler(getBookings));
+router.get('/payments', requireAdmin, asyncHandler(getPayments));
 
 module.exports = router;

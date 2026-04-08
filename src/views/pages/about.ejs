@@ -1,15 +1,30 @@
 <%- include('../partials/header') %>
 
-<section class="container page-section">
+<section class="container page-section content-stack">
   <article class="card-glass content-card reveal">
     <p class="eyebrow">About ORS</p>
-    <h1>Modern Multi-Model Reservation Platform</h1>
+    <h1>Designed like a real booking operations platform, not a single-page demo.</h1>
     <p>
-      ORS unifies Flight, Train, Bus, and Hotel booking in one premium full-stack web platform.
-      It is built with a production-style architecture covering secure authentication, intelligent search,
-      visual selection maps, payment flow, cancellation handling, and analytics-ready admin tools.
+      ORS brings flight, train, bus, and hotel reservations into one connected workflow. The platform combines live
+      inventory-backed search, booking creation, payment confirmation, passenger tracking, and operational oversight
+      through a single full-stack system.
     </p>
   </article>
+
+  <div class="info-grid reveal-group">
+    <article class="card-glass info-tile reveal">
+      <h3>Unified Search</h3>
+      <p>Travelers compare transport and stay options using one interface while the backend keeps each inventory type separate and query-driven.</p>
+    </article>
+    <article class="card-glass info-tile reveal">
+      <h3>Reservation Control</h3>
+      <p>Seat and room allocation, booking status, payment state, and cancellation handling are preserved across the full reservation lifecycle.</p>
+    </article>
+    <article class="card-glass info-tile reveal">
+      <h3>Operational Visibility</h3>
+      <p>Admins can manage routes, hotels, pricing, customers, and transaction activity without changing the traveler-facing experience.</p>
+    </article>
+  </div>
 </section>
 
 <%- include('../partials/footer') %>

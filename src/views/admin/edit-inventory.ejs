@@ -9,6 +9,7 @@
   </div>
 
   <form class="card-glass form-wide" action="/admin/manage/<%= type %>/edit/<%= item[config.id] %>" method="POST" novalidate>
+    <input type="hidden" name="_csrf" value="<%= csrfToken %>" />
     <div class="input-grid">
       <% if (type === 'hotel') { %>
         <label>Hotel Name<input name="hotel_name" value="<%= item.hotel_name %>" required /></label>

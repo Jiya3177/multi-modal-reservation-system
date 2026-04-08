@@ -1,0 +1,87 @@
+<%- include('../partials/header') %>
+
+<section class="container page-section">
+  <div class="section-head">
+    <div>
+      <p class="eyebrow">Admin User Panel</p>
+      <h1><%= user.full_name %></h1>
+      <p class="subtext">Review wallet balance, user profile, and booking activity from a separate admin page.</p>
+    </div>
+    <a class="btn btn-ghost" href="/admin/users">Back to Users</a>
+  </div>
+
+  <div class="stats-grid">
+    <article class="card-glass stat-card"><h4>INR <%= Number(user.wallet_balance).toFixed(2) %></h4><p>Wallet Balance</p></article>
+    <article class="card-glass stat-card"><h4><%= summary.total_bookings %></h4><p>Total Bookings</p></article>
+    <article class="card-glass stat-card"><h4>INR <%= Number(summary.confirmed_value).toFixed(2) %></h4><p>Confirmed Value</p></article>
+  </div>
+
+  <div class="split-grid">
+    <article class="card-glass">
+      <h3>User Details</h3>
+      <div class="info-grid">
+        <div><span>ID</span><strong><%= user.user_id %></strong></div>
+        <div><span>Email</span><strong><%= user.email %></strong></div>
+        <div><span>Phone</span><strong><%= user.phone %></strong></div>
+        <div><span>Role</span><strong><%= user.role %></strong></div>
+        <div><span>Created</span><strong><%= user.created_at %></strong></div>
+        <div><span>Wallet Updated</span><strong><%= user.wallet_updated_at || 'Not updated yet' %></strong></div>
+      </div>
+    </article>
+
+    <article class="card-glass">
+      <h3>Add Wallet Money</h3>
+      <form action="/admin/users/<%= user.user_id %>/wallet" method="POST" class="form-stack">
+        <input type="hidden" name="_csrf" value="<%= csrfToken %>" />
+        <label>Amount
+          <input type="number" name="amount" min="1" step="0.01" placeholder="Enter amount in INR" required />
+        </label>
+        <button class="btn" type="submit">Add Funds</button>
+      </form>
+    </article>
+  </div>
+
+  <article class="card-glass">
+    <h3>User-wise Bookings</h3>
+    <div class="table-wrap">
+      <table>
+        <thead>
+          <tr>
+            <th>Booking ID</th>
+            <th>Type</th>
+            <th>Travel</th>
+            <th>Amount</th>
+            <th>Booking Status</th>
+            <th>Payment</th>
+            <th>Transaction</th>
+          </tr>
+        </thead>
+        <tbody>
+          <% if (!bookings.length) { %>
+            <tr>
+              <td colspan="7">No bookings found for this user.</td>
+            </tr>
+          <% } %>
+          <% bookings.forEach((booking) => { %>
+            <tr>
+              <td><%= booking.reservation_id %></td>
+              <td><%= booking.booking_type %></td>
+              <td>
+                <%= booking.travel_date %>
+                <% if (booking.check_out_date) { %>
+                  to <%= booking.check_out_date %>
+                <% } %>
+              </td>
+              <td>INR <%= Number(booking.total_price).toFixed(2) %></td>
+              <td><%= booking.booking_status %></td>
+              <td><%= booking.payment_status %></td>
+              <td><%= booking.transaction_ref || 'Pending' %></td>
+            </tr>
+          <% }) %>
+        </tbody>
+      </table>
+    </div>
+  </article>
+</section>
+
+<%- include('../partials/footer') %>

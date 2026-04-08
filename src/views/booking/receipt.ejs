@@ -1,0 +1,45 @@
+<%- include('../partials/header') %>
+
+<section class="container page-section">
+  <article class="card-glass receipt-card">
+    <div class="section-head section-head-tight">
+      <div>
+        <p class="eyebrow">Receipt</p>
+        <h1><%= booking.reservation_id %></h1>
+        <p class="subtext"><%= booking.route_label %> • <%= booking.booking_type.toUpperCase() %></p>
+      </div>
+      <span class="status-badge <%= booking.booking_status === 'CONFIRMED' ? 'status-confirmed' : booking.booking_status === 'CANCELLED' ? 'status-failed' : 'status-pending' %>">
+        <%= booking.booking_status %>
+      </span>
+    </div>
+
+    <div class="receipt-grid">
+      <div><span>Booking Date</span><strong><%= booking.created_at %></strong></div>
+      <div><span><%= booking.booking_type === 'hotel' ? 'Check-in Date' : 'Travel Date' %></span><strong><%= booking.travel_date %></strong></div>
+      <% if (booking.booking_type === 'hotel') { %>
+        <div><span>Check-out Date</span><strong><%= booking.check_out_date || 'Pending' %></strong></div>
+      <% } %>
+      <div><span>Transaction ID</span><strong><%= booking.transaction_ref || 'Pending' %></strong></div>
+      <div><span>UPI ID</span><strong><%= booking.upi_id || 'reservation@okaxis' %></strong></div>
+      <div><span>Merchant</span><strong><%= booking.merchant_name || 'ORS Reservation Hub' %></strong></div>
+      <div><span>Amount</span><strong>INR <%= booking.total_price %></strong></div>
+      <div><span>Payment Status</span><strong><%= booking.transaction_status %></strong></div>
+      <div><span>Verified At</span><strong><%= booking.verified_at || 'Pending' %></strong></div>
+    </div>
+
+    <div class="receipt-units">
+      <h3>Seat / Room Details</h3>
+      <p><%= units.map((unit) => unit.seat_label).join(', ') || booking.units %></p>
+    </div>
+
+    <div class="action-row">
+      <a href="/booking/history" class="btn">Back to History</a>
+      <% if (booking.booking_status === 'CONFIRMED') { %>
+        <a href="/booking/ticket/<%= booking.booking_id %>/print" class="btn">Printable Ticket</a>
+        <a href="/booking/ticket/<%= booking.booking_id %>" class="btn btn-ghost">Download Ticket</a>
+      <% } %>
+    </div>
+  </article>
+</section>
+
+<%- include('../partials/footer') %>

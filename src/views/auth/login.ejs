@@ -2,12 +2,18 @@
 
 <section class="container auth-shell">
   <article class="auth-side card-glass reveal">
-    <p class="eyebrow">Welcome Back</p>
-    <h1>Login to continue your bookings.</h1>
-    <p class="subtext">Access dashboard, tickets, cancellations, and travel notifications.</p>
+    <p class="eyebrow">Traveler Sign In</p>
+    <h1>Access active bookings, payments, and trip history.</h1>
+    <p class="subtext">Use your registered email or phone to continue into the reservation dashboard.</p>
+    <div class="auth-points">
+      <span>Upcoming trip tracking</span>
+      <span>Payment and ticket access</span>
+      <span>Cancellation controls</span>
+    </div>
   </article>
 
   <form class="auth-form card-glass reveal" action="/auth/login" method="POST" novalidate>
+    <input type="hidden" name="_csrf" value="<%= csrfToken %>" />
     <h2>User Login</h2>
     <% if (error) { %><p class="field-error"><%= error %></p><% } %>
     <label>Email or Phone

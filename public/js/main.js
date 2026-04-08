@@ -1,5 +1,6 @@
 const searchForm = document.getElementById('searchForm');
 const tabWrap = document.querySelector('[data-search-tabs]');
+const csrfToken = document.querySelector('meta[name="csrf-token"]')?.getAttribute('content') || '';
 
 function applySearchMode(type) {
   const sourceLabel = document.getElementById('sourceLabel');
@@ -14,36 +15,19 @@ function applySearchMode(type) {
 
   if (!sourceLabel || !sourceInput || !destinationLabel || !destinationInput || !dateLabel || !dateInput) return;
 
-  if (type === 'hotel') {
-    sourceLabel.style.display = 'none';
-    sourceInput.required = false;
-    sourceInput.value = '';
+  sourceLabel.style.display = '';
+  sourceInput.required = true;
 
-    destinationLabel.firstChild.textContent = 'City';
-    destinationInput.placeholder = 'Hotel city';
-    destinationInput.required = true;
+  destinationLabel.firstChild.textContent = 'To';
+  destinationInput.placeholder = 'Destination city';
+  destinationInput.required = true;
 
-    dateLabel.firstChild.textContent = 'Check-in Date';
-    dateInput.required = true;
+  dateLabel.firstChild.textContent = 'Date';
+  dateInput.required = true;
 
-    if (classTypeLabel) classTypeLabel.firstChild.textContent = 'Room Type';
-    if (peopleLabel) peopleLabel.firstChild.textContent = 'Guests';
-    if (searchHint) searchHint.textContent = 'Search stays by city with smart alternatives by rating and price.';
-  } else {
-    sourceLabel.style.display = '';
-    sourceInput.required = true;
-
-    destinationLabel.firstChild.textContent = 'To';
-    destinationInput.placeholder = 'Destination city';
-    destinationInput.required = true;
-
-    dateLabel.firstChild.textContent = 'Date';
-    dateInput.required = true;
-
-    if (classTypeLabel) classTypeLabel.firstChild.textContent = 'Class / Room Type';
-    if (peopleLabel) peopleLabel.firstChild.textContent = 'Passengers / Guests';
-    if (searchHint) searchHint.textContent = 'Search direct routes first, then nearest-date alternatives automatically.';
-  }
+  if (classTypeLabel) classTypeLabel.firstChild.textContent = 'Class / Room Type';
+  if (peopleLabel) peopleLabel.firstChild.textContent = 'Passengers / Guests';
+  if (searchHint) searchHint.textContent = 'Search direct routes first, then nearest-date transport alternatives automatically.';
 }
 
 if (tabWrap) {
@@ -96,45 +80,78 @@ if (searchForm) {
   });
 
   searchForm.addEventListener('submit', (event) => {
-    const type = typeInput ? typeInput.value : 'flight';
     const source = sourceInput.value.trim();
     const destination = destinationInput.value.trim();
 
-    if (type === 'hotel') {
-      if (!destination) {
-        event.preventDefault();
-        alert('Please enter hotel city.');
-        return;
-      }
+    if (!source || !destination) {
+      event.preventDefault();
+      alert('Source and destination are required.');
+      return;
+    }
 
-      if (!dateInput.value) {
-        event.preventDefault();
-        alert('Please select check-in date.');
-        return;
-      }
-    } else {
-      if (!source || !destination) {
-        event.preventDefault();
-        alert('Source and destination are required.');
-        return;
-      }
+    if (source.toLowerCase() === destination.toLowerCase()) {
+      event.preventDefault();
+      alert('Source and destination cannot be the same.');
+      return;
+    }
 
-      if (source.toLowerCase() === destination.toLowerCase()) {
-        event.preventDefault();
-        alert('Source and destination cannot be the same.');
-        return;
-      }
-
-      if (!dateInput.value) {
-        event.preventDefault();
-        alert('Please select a travel date.');
-        return;
-      }
+    if (!dateInput.value) {
+      event.preventDefault();
+      alert('Please select a travel date.');
+      return;
     }
 
     if (submitBtn) {
       submitBtn.disabled = true;
       submitBtn.textContent = 'Searching options...';
+    }
+  });
+}
+
+const hotelSearchForm = document.getElementById('hotelSearchForm');
+if (hotelSearchForm) {
+  const hotelDestinationInput = document.getElementById('hotelDestinationInput');
+  const hotelCheckinInput = document.getElementById('hotelCheckinInput');
+  const hotelCheckoutInput = document.getElementById('hotelCheckoutInput');
+  const hotelSubmitBtn = document.getElementById('hotelSearchSubmitBtn');
+  const cityList = document.getElementById('cityList');
+
+  if (hotelDestinationInput) {
+    hotelDestinationInput.addEventListener('input', (event) => {
+      fetchCitySuggestions(event.target.value.trim(), cityList);
+    });
+  }
+
+  hotelSearchForm.addEventListener('submit', (event) => {
+    const city = hotelDestinationInput ? hotelDestinationInput.value.trim() : '';
+
+    if (!city) {
+      event.preventDefault();
+      alert('Please enter hotel city.');
+      return;
+    }
+
+    if (!hotelCheckinInput || !hotelCheckinInput.value) {
+      event.preventDefault();
+      alert('Please select check-in date.');
+      return;
+    }
+
+    if (!hotelCheckoutInput || !hotelCheckoutInput.value) {
+      event.preventDefault();
+      alert('Please select check-out date.');
+      return;
+    }
+
+    if (new Date(hotelCheckoutInput.value) <= new Date(hotelCheckinInput.value)) {
+      event.preventDefault();
+      alert('Check-out date must be after check-in date.');
+      return;
+    }
+
+    if (hotelSubmitBtn) {
+      hotelSubmitBtn.disabled = true;
+      hotelSubmitBtn.textContent = 'Searching hotels...';
     }
   });
 }
@@ -375,3 +392,254 @@ window.addEventListener('pointermove', (event) => {
     rafPending = false;
   });
 });
+
+const upiFlow = document.getElementById('upiPaymentFlow');
+if (upiFlow) {
+  const bookingId = upiFlow.dataset.bookingId;
+  const reservationId = upiFlow.dataset.reservationId;
+  const amount = upiFlow.dataset.amount;
+  const merchantName = upiFlow.dataset.merchantName;
+  const upiId = upiFlow.dataset.upiId;
+  const simulatePaymentBtn = document.getElementById('simulatePaymentBtn');
+  const verifyOtpBtn = document.getElementById('verifyOtpBtn');
+  const feedbackEl = document.getElementById('upiFeedback');
+  const qrCodeEl = document.getElementById('upiQrCode');
+  const otpDigits = Array.from(document.querySelectorAll('.otp-digit'));
+  const countdownEl = document.getElementById('upiCountdown');
+  const walletBalanceDisplay = document.getElementById('walletBalanceDisplay');
+  const paymentPasswordInput = document.getElementById('paymentPasswordInput');
+  let paymentSession = null;
+  let countdownTimer = null;
+  let paymentSessionPromise = null;
+
+  function setFeedback(message, type = '') {
+    if (!feedbackEl) return;
+    feedbackEl.textContent = message;
+    feedbackEl.className = `upi-feedback ${type}`.trim();
+  }
+
+  function switchStep(stepName) {
+    const steps = upiFlow.querySelectorAll('.upi-step');
+    steps.forEach((step) => {
+      step.classList.toggle('upi-step-active', step.dataset.step === stepName);
+    });
+  }
+
+  function renderQrCode(payload) {
+    if (!qrCodeEl || typeof window.QRCode === 'undefined') return;
+    qrCodeEl.innerHTML = '';
+    new window.QRCode(qrCodeEl, {
+      text: payload,
+      width: 180,
+      height: 180,
+      colorDark: '#5F259F',
+      colorLight: '#ffffff'
+    });
+  }
+
+  function getPaymentPassword() {
+    return paymentPasswordInput ? paymentPasswordInput.value : '';
+  }
+
+  function handlePaymentAuthFailure(payload, fallbackMessage) {
+    const errorMessage = payload && payload.error ? payload.error : fallbackMessage;
+    setFeedback(errorMessage, 'error');
+    if (payload && payload.bookingCancelled && payload.redirectTo) {
+      window.setTimeout(() => {
+        window.location.href = payload.redirectTo;
+      }, 1200);
+    }
+  }
+
+  function startCountdown(expiresAt) {
+    if (countdownTimer) window.clearInterval(countdownTimer);
+
+    function tick() {
+      const msLeft = new Date(expiresAt).getTime() - Date.now();
+      if (msLeft <= 0) {
+        if (countdownEl) countdownEl.textContent = '00:00';
+        if (simulatePaymentBtn) simulatePaymentBtn.disabled = true;
+        setFeedback('Payment session expired. Refresh the page to restart the UPI flow.', 'error');
+        window.clearInterval(countdownTimer);
+        return;
+      }
+
+      const totalSeconds = Math.floor(msLeft / 1000);
+      const minutes = String(Math.floor(totalSeconds / 60)).padStart(2, '0');
+      const seconds = String(totalSeconds % 60).padStart(2, '0');
+      if (countdownEl) countdownEl.textContent = `${minutes}:${seconds}`;
+    }
+
+    tick();
+    countdownTimer = window.setInterval(tick, 1000);
+  }
+
+  async function startPaymentSession() {
+    if (paymentSession) return paymentSession;
+    if (paymentSessionPromise) return paymentSessionPromise;
+
+    setFeedback('Preparing UPI session...');
+    paymentSessionPromise = (async () => {
+      const response = await fetch('/api/pay', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json', 'X-CSRF-Token': csrfToken },
+        body: JSON.stringify({ bookingId })
+      });
+      const payload = await response.json();
+      if (!response.ok || !payload.ok) {
+        handlePaymentAuthFailure(payload, 'Unable to start payment.');
+        return null;
+      }
+
+      paymentSession = payload;
+      renderQrCode(payload.qrPayload);
+      startCountdown(payload.expiresAt);
+      if (walletBalanceDisplay) walletBalanceDisplay.textContent = `INR ${Number(payload.walletBalance).toFixed(2)}`;
+      setFeedback(`Ready to pay INR ${Number(amount).toFixed(2)} to ${merchantName} using ${upiId}.`, 'success');
+      return paymentSession;
+    })();
+
+    try {
+      return await paymentSessionPromise;
+    } catch (error) {
+      paymentSession = null;
+      setFeedback(error.message, 'error');
+      return null;
+    } finally {
+      paymentSessionPromise = null;
+    }
+  }
+
+  async function completeUpiPayment() {
+    const loginPassword = getPaymentPassword();
+    if (!loginPassword) {
+      setFeedback('Enter your login password to finalize payment.', 'error');
+      if (paymentPasswordInput) paymentPasswordInput.focus();
+      return;
+    }
+
+    try {
+      const response = await fetch('/api/confirm-upi', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json', 'X-CSRF-Token': csrfToken },
+        body: JSON.stringify({ bookingId, loginPassword })
+      });
+      const payload = await response.json();
+      if (!response.ok || !payload.ok) {
+        handlePaymentAuthFailure(payload, 'Payment confirmation failed.');
+        return;
+      }
+
+      document.getElementById('successTransactionId').textContent = payload.transactionRef;
+      document.getElementById('successAmount').textContent = `INR ${Number(payload.amount).toFixed(2)}`;
+      document.getElementById('successTime').textContent = payload.paidAt;
+      document.getElementById('successWalletBalance').textContent = `INR ${Number(payload.walletBalance).toFixed(2)}`;
+      if (walletBalanceDisplay) walletBalanceDisplay.textContent = `INR ${Number(payload.walletBalance).toFixed(2)}`;
+      switchStep('success');
+      setFeedback('Payment confirmed. Booking status updated to CONFIRMED.', 'success');
+    } catch (error) {
+      setFeedback(error.message, 'error');
+    } finally {
+      if (simulatePaymentBtn) {
+        simulatePaymentBtn.disabled = false;
+        simulatePaymentBtn.textContent = 'Pay via UPI';
+      }
+    }
+  }
+
+  function collectOtpValue() {
+    return otpDigits.map((input) => input.value.trim()).join('');
+  }
+
+  otpDigits.forEach((input, index) => {
+    input.addEventListener('input', () => {
+      input.value = input.value.replace(/\D/g, '');
+      if (input.value && otpDigits[index + 1]) {
+        otpDigits[index + 1].focus();
+      }
+    });
+
+    input.addEventListener('keydown', (event) => {
+      if (event.key === 'Backspace' && !input.value && otpDigits[index - 1]) {
+        otpDigits[index - 1].focus();
+      }
+    });
+  });
+
+  if (simulatePaymentBtn) {
+    simulatePaymentBtn.addEventListener('click', async () => {
+      simulatePaymentBtn.disabled = true;
+      simulatePaymentBtn.textContent = 'Processing...';
+
+      if (!paymentSession) {
+        await startPaymentSession();
+      }
+
+      if (!paymentSession) {
+        simulatePaymentBtn.disabled = false;
+        simulatePaymentBtn.textContent = 'Pay via UPI';
+        return;
+      }
+
+      if (paymentSession.requiresOtp) {
+        simulatePaymentBtn.disabled = false;
+        simulatePaymentBtn.textContent = 'Pay via UPI';
+        switchStep('otp');
+        setFeedback(`OTP sent to ${paymentSession.otpPhone}. Enter it to confirm the payment.`, 'success');
+        if (otpDigits[0]) otpDigits[0].focus();
+      } else {
+        await completeUpiPayment();
+      }
+    });
+  }
+
+  if (verifyOtpBtn) {
+    verifyOtpBtn.addEventListener('click', async () => {
+      const otp = collectOtpValue();
+      if (otp.length !== 6) {
+        setFeedback('Enter the full 6-digit OTP.', 'error');
+        return;
+      }
+
+      verifyOtpBtn.disabled = true;
+      verifyOtpBtn.textContent = 'Verifying...';
+
+      try {
+        const loginPassword = getPaymentPassword();
+        if (!loginPassword) {
+          setFeedback('Enter your login password to finalize payment.', 'error');
+          if (paymentPasswordInput) paymentPasswordInput.focus();
+          return;
+        }
+
+        const response = await fetch('/api/verify-otp', {
+          method: 'POST',
+          headers: { 'Content-Type': 'application/json', 'X-CSRF-Token': csrfToken },
+          body: JSON.stringify({ bookingId, otp, loginPassword })
+        });
+        const payload = await response.json();
+        if (!response.ok || !payload.ok) {
+          handlePaymentAuthFailure(payload, 'OTP verification failed.');
+          return;
+        }
+
+        document.getElementById('successTransactionId').textContent = payload.transactionRef;
+        document.getElementById('successAmount').textContent = `INR ${Number(payload.amount).toFixed(2)}`;
+        document.getElementById('successTime').textContent = payload.paidAt;
+        document.getElementById('successWalletBalance').textContent = `INR ${Number(payload.walletBalance).toFixed(2)}`;
+        if (walletBalanceDisplay) walletBalanceDisplay.textContent = `INR ${Number(payload.walletBalance).toFixed(2)}`;
+        switchStep('success');
+        setFeedback('Payment confirmed. Booking status updated to CONFIRMED.', 'success');
+      } catch (error) {
+        setFeedback(error.message, 'error');
+      } finally {
+        verifyOtpBtn.disabled = false;
+        verifyOtpBtn.textContent = 'Verify OTP';
+      }
+    });
+  }
+
+  renderQrCode(`upi://pay?pa=${encodeURIComponent(upiId)}&pn=${encodeURIComponent(merchantName)}&am=${encodeURIComponent(Number(amount).toFixed(2))}&tn=${encodeURIComponent(reservationId || bookingId)}&tr=${encodeURIComponent(bookingId)}`);
+  setFeedback('Preparing UPI session...', '');
+  startPaymentSession();
+}

@@ -93,8 +93,20 @@ function isValidPhone(phone) {
   return /^\d{10}$/.test(phone);
 }
 
+function generateTransactionRef() {
+  const stamp = Date.now().toString(36).toUpperCase();
+  const random = Math.floor(Math.random() * 1000000).toString().padStart(6, '0');
+  return `TXN-${stamp}-${random}`;
+}
+
+function generateOtp() {
+  return Math.floor(100000 + Math.random() * 900000).toString();
+}
+
 module.exports = {
   generateReservationId,
+  generateTransactionRef,
+  generateOtp,
   getInventoryConfig,
   getUnitLayoutConfig,
   generateUnitLabels,

@@ -129,6 +129,36 @@ CREATE TABLE IF NOT EXISTS refunds (
   FOREIGN KEY (payment_id) REFERENCES payments(payment_id)
 );
 
+CREATE TABLE IF NOT EXISTS password_resets (
+  reset_id INT AUTO_INCREMENT PRIMARY KEY,
+  user_id INT NOT NULL,
+  token_hash VARCHAR(64) NOT NULL,
+  expires_at DATETIME NOT NULL,
+  used_at DATETIME NULL,
+  created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
+  INDEX idx_password_resets_user_id (user_id),
+  INDEX idx_password_resets_token_hash (token_hash),
+  FOREIGN KEY (user_id) REFERENCES users(user_id) ON DELETE CASCADE
+);
+
+CREATE TABLE IF NOT EXISTS transactions (
+  transaction_id INT AUTO_INCREMENT PRIMARY KEY,
+  booking_id INT NOT NULL,
+  user_id INT NOT NULL,
+  amount DECIMAL(10,2) NOT NULL,
+  merchant_name VARCHAR(120) NOT NULL,
+  upi_id VARCHAR(120) NOT NULL,
+  transaction_ref VARCHAR(60) NOT NULL UNIQUE,
+  otp_code_hash VARCHAR(255) NOT NULL,
+  otp_phone VARCHAR(20) NOT NULL,
+  status ENUM('INITIATED','OTP_PENDING','SUCCESS','FAILED','EXPIRED') DEFAULT 'INITIATED',
+  expires_at DATETIME NOT NULL,
+  verified_at DATETIME NULL,
+  created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
+  FOREIGN KEY (booking_id) REFERENCES bookings(booking_id) ON DELETE CASCADE,
+  FOREIGN KEY (user_id) REFERENCES users(user_id) ON DELETE CASCADE
+);
+
 CREATE TABLE IF NOT EXISTS reviews (
   review_id INT AUTO_INCREMENT PRIMARY KEY,
   user_id INT NOT NULL,

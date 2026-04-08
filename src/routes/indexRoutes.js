@@ -1,13 +1,14 @@
 const express = require('express');
-const { getHome, getAbout, getContact } = require('../controllers/pageController');
+const { renderHomePage, renderAboutPage, renderContactPage } = require('../controllers/pageController');
 const { requireUser } = require('../middleware/auth');
-const { getDashboard } = require('../controllers/bookingController');
+const { renderUserDashboard } = require('../controllers/bookingController');
+const { asyncHandler } = require('../utils/asyncHandler');
 
 const router = express.Router();
 
-router.get('/', getHome);
-router.get('/about', getAbout);
-router.get('/contact', getContact);
-router.get('/dashboard', requireUser, getDashboard);
+router.get('/', asyncHandler(renderHomePage));
+router.get('/about', renderAboutPage);
+router.get('/contact', renderContactPage);
+router.get('/dashboard', requireUser, asyncHandler(renderUserDashboard));
 
 module.exports = router;

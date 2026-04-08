@@ -13,7 +13,7 @@
     <article class="card-glass stat-card"><h4><%= users.total_users %></h4><p>Users</p></article>
     <article class="card-glass stat-card"><h4><%= bookings.total_bookings %></h4><p>Bookings</p></article>
     <article class="card-glass stat-card"><h4>INR <%= revenue.total_revenue %></h4><p>Revenue</p></article>
-    <article class="card-glass stat-card"><h4><%= bookingStats.length %></h4><p>Booking Categories</p></article>
+    <article class="card-glass stat-card"><h4>INR <%= Number(walletBalance.total_wallet_balance).toFixed(2) %></h4><p>User Wallets</p></article>
   </div>
 
   <article class="card-glass">
@@ -26,11 +26,11 @@
   </article>
 
   <div class="action-row wrap">
+    <a class="btn" href="/admin/users">User Wallets</a>
     <a class="btn" href="/admin/manage/flight">Manage Flights</a>
     <a class="btn" href="/admin/manage/train">Manage Trains</a>
     <a class="btn" href="/admin/manage/bus">Manage Buses</a>
     <a class="btn" href="/admin/manage/hotel">Manage Hotels</a>
-    <a class="btn" href="/admin/users">Users</a>
     <a class="btn" href="/admin/bookings">Bookings</a>
     <a class="btn" href="/admin/payments">Payments</a>
   </div>

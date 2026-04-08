@@ -2,16 +2,20 @@
 
 <section class="container page-section">
   <article class="card-glass confirm-card reveal">
-    <div class="success-anim" aria-hidden="true">
-      <span></span>
+    <div class="success-anim success-anim-green" aria-hidden="true">
       <i>✓</i>
     </div>
     <h1>Booking Confirmed</h1>
-    <p>Your reservation has been completed successfully.</p>
-    <p><strong>Reservation ID:</strong> <%= reservationId %></p>
+    <p>Your UPI payment completed successfully.</p>
+    <div class="upi-success-grid compact">
+      <div><span>Reservation ID</span><strong><%= reservationId %></strong></div>
+      <div><span>Transaction</span><strong><%= transactionRef %></strong></div>
+      <div><span>Amount</span><strong>INR <%= amount %></strong></div>
+      <div><span>Paid At</span><strong><%= paidAt %></strong></div>
+    </div>
     <div class="action-row">
-      <a href="/dashboard" class="btn">Open Dashboard</a>
-      <a href="/booking/ticket/<%= bookingId %>" class="btn btn-ghost">Download Ticket</a>
+      <a href="/booking/history" class="btn">Open History</a>
+      <a href="/booking/history/<%= bookingId %>" class="btn btn-ghost">View Receipt</a>
     </div>
   </article>
 </section>

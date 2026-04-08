@@ -6,7 +6,7 @@ INSERT IGNORE INTO cities (city_name) VALUES
 -- Password hash for: admin123
 INSERT IGNORE INTO admin (full_name, email, password_hash) VALUES
 ('Main Admin', 'admin@ors.com', '$2a$10$KsKf7rfYrSkpqxOFxNnW1eWV7xj4laP1epYUGNfrWYhA1w1I6Q0Fa');
-
+ 
 -- Password hash for: user123
 INSERT IGNORE INTO users (full_name, email, phone, password_hash, role) VALUES
 ('Demo User', 'user@ors.com', '9876543210', '$2a$10$8H9k6W0MOAzBfV9mQ9F6j.tP4djH0mL1J9FoV6XHuuoMBr2tXQvRm', 'user');
@@ -22,6 +22,11 @@ INSERT INTO trains (code, operator_name, source_city_id, destination_city_id, tr
 INSERT INTO buses (code, operator_name, source_city_id, destination_city_id, travel_date, depart_time, arrive_time, class_type, price, total_seats, available_seats, rating) VALUES
 ('RB55', 'RedLine Travels', 1, 8, CURDATE() + INTERVAL 1 DAY, '22:00:00', '05:00:00', 'AC Sleeper', 1200, 40, 14, 4.3),
 ('GS88', 'GreenStar', 2, 7, CURDATE() + INTERVAL 1 DAY, '21:00:00', '06:30:00', 'Volvo AC', 1400, 36, 9, 4.2);
+
+-- Note:
+-- The application startup now auto-generates missing flight/train/bus routes
+-- between every city pair, so fresh databases get complete city-to-city coverage
+-- without changing the existing run command.
 
 INSERT INTO hotels (hotel_name, city_id, room_type, amenities, price_per_night, total_rooms, available_rooms, rating) VALUES
 ('Rose Palace', 2, 'Deluxe', 'WiFi,Pool,Breakfast', 3200, 120, 32, 4.4),
