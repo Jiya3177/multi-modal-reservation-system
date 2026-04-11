@@ -6,6 +6,7 @@ const dotenv = require('dotenv');
 const pool = require('./config/db');
 const { exposeSession } = require('./middleware/auth');
 const { exposeCsrfToken, requireCsrf } = require('./middleware/csrf');
+const { ensureBaseSchema } = require('./utils/ensureBaseSchema');
 const { ensureDemoInventoryCoverage } = require('./utils/bootstrapDemoInventory');
 
 dotenv.config();
@@ -92,6 +93,7 @@ app.use((err, req, res, next) => {
 
 async function startServer() {
   try {
+    await ensureBaseSchema();
     await pool.query('SELECT 1');
     await ensureDemoInventoryCoverage();
   } catch (err) {
